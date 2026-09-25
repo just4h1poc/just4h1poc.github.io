@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bug Bounty — Beginner's Guide — zonduu</title>
+  <meta name="description" content="How I got into bug bounty hunting with no coding or web-dev background, plus the free resources I used and answers to common beginner questions." />
+  <meta name="theme-color" content="#0d0e10" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Bug Bounty — Beginner's Guide" />
+  <meta property="og:description" content="How I got into bug bounty hunting with no coding or web-dev background, plus the free resources I used." />
+  <link rel="icon" href="/assets/img/avatar.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="/">
+        <span class="logo__prompt">&gt;</span>
+        <span>root@zonduu:~#</span>
+        <span class="logo__cursor" aria-hidden="true"></span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="/">home</a>
+        <a href="/posts/">posts</a>
+        <span class="nav__icons">
+          <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener" title="Twitter" aria-label="Twitter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+          </a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap wrap--reading page-title">
+      <a class="back-link" href="/posts/">&lt; ~/posts</a>
+      <h1>Bug Bounty — Beginner's Guide</h1>
+      <div class="post-meta">
+        <span>Jun 22, 2020</span>
+        <span class="dot">•</span>
+        <span>6 min read</span>
+        <span class="dot">•</span>
+        <span>#bug-bounty</span>
+        <span>#getting-started</span>
+      </div>
+    </div>
+
+    <article class="wrap wrap--reading prose">
+      <p>There are lots of guides on how to start into bug bounty hunting, but I will share my
+      personal experience of getting into bug bounty hunting without previous knowledge of coding
+      or web development, and will also share some useful resources as well as answering some
+      common questions.</p>
+
+      <h2>How I started?</h2>
+      <p>I started hunting for bugs without knowing any web development. I joined H1 without
+      knowing what XSS was. It took me a little more than a year to be where I am — constant
+      learning and studying. This is a competitive field; you can earn money but it won't be
+      easy, you need to earn it.</p>
+      <p>I had no idea how a lot of things worked but eventually I learned about them. Now I can
+      proudly say I found all Top 10 OWASP vulnerabilities like SQLi, RCE, XXE, apart from many
+      more, but it took a lot of hard work — it didn't happen from one day to another.</p>
+      <p>Right now this is my full-time job.</p>
+
+      <h2>Where to start?</h2>
+      <p>When starting you may get overwhelmed with all the information there is out there, and
+      that's fine, but I recommend learning one thing at a time; once you are done with that you
+      move up to another thing/topic. For example, pick a vulnerability type and learn in depth
+      about it, then move to another, etc.</p>
+      <p>What vulnerabilities does every bug bounty hunter know? There are too many and some are
+      fairly new like HTTP smuggling, so I will just mention some of the ones I think you should
+      start with. You will learn others along your journey. They are not in order, so you can
+      pick any of them to start:</p>
+      <ul>
+        <li>XSS</li>
+        <li>CSRF</li>
+        <li>IDOR</li>
+        <li>Open Redirect</li>
+        <li>SSRF</li>
+        <li>SQL injection (the basics, since it can be hard when starting)</li>
+      </ul>
+      <p>These are common web vulnerabilities but there are many more. So when starting from zero
+      I would pick one of the above and try to learn about it. Then repeat. If you already know
+      all of them, then search for others.</p>
+
+      <h2>Where can I learn about them?</h2>
+      <p>There are a lot of resources to learn every vulnerability type — everything is out there.
+      I will just mention some useful websites that you can start learning from now, completely
+      free.</p>
+
+      <h3>PortSwigger's labs</h3>
+      <p><a href="https://portswigger.net/web-security" target="_blank" rel="noopener">portswigger.net/web-security</a>
+      — They explain almost all vulnerability types that exist. They give a really good summary
+      on what the vulnerability is, and also have a lab that is a controlled environment where you
+      can hack it, exploiting that vulnerability type.</p>
+
+      <h3>HackerOne's Hacktivity</h3>
+      <p><a href="https://hackerone.com/hacktivity" target="_blank" rel="noopener">hackerone.com/hacktivity</a>
+      — The search function inside HackerOne sucks, so you can use Google to search for this:
+      "Hackerone XSS" in Google will give you results of other hackers' findings on real websites
+      about XSS. Personally, I used this a lot when starting, and still look at it almost every
+      day, so you can get a real vision of how the vulnerability looks on a real website and how
+      hackers find and report them.</p>
+
+      <h3>CTFs (Capture The Flag)</h3>
+      <p>CTF is where you hack into a controlled environment to find a "flag" that will prove you
+      completed it. I honestly don't like CTFs and never really got into it, but some people do
+      and learn a lot from it. It can be useful to improve your skills and some people just enjoy
+      doing them.</p>
+
+      <h3>HackerOne Discord</h3>
+      <p><a href="https://discord.com/invite/32ZNZVN" target="_blank" rel="noopener">discord.com/invite/32ZNZVN</a>
+      — I just can't think of what would be of me if I had never found this Discord server. I
+      joined there without knowing what XSS was. I didn't know any web vulnerability. It took a
+      lot of work and a lot of desire to learn to get where I am, and eventually paid off. There
+      are a lot of people there that will point you in the right direction, feel free to ask
+      questions there.</p>
+
+      <h2>Do I need to use any special tool?</h2>
+      <p>When you start, all you need is the free version of Burp Suite to intercept and log
+      traffic, and a browser. Eventually you will start using other tools or developing your own
+      and that's normal, but you don't need to learn 20 tools to start hunting for bugs… just a
+      browser and Burp Suite.</p>
+
+      <h2>Do I need to know how to code?</h2>
+      <p>Well, you don't need to, but it definitely helps. I knew a bit of Python when I started
+      in the bug bounty world and it helped me automate some basic tasks, and recently I used it
+      a lot for "complex" PoCs of my last reports.</p>
+      <p>I would recommend learning a bit of bash scripting and Python so if you want to automate
+      a task you can do it. It is also important to know the basics of JavaScript and HTML to
+      actually know how to get an XSS — you should definitely learn a bit about them too.</p>
+
+      <h2>How to write a report?</h2>
+      <p>You need to be clear about what the bug and the impact are. There are awesome reports on
+      HackerOne that you can take as a guide. Also check
+      <a href="https://docs.hackerone.com/hackers/quality-reports.html" target="_blank" rel="noopener">HackerOne's quality-reports guide</a>.</p>
+
+      <h2>When should I start looking for vulnerabilities in real websites?</h2>
+      <p>Well, this is a hard question. Everyone makes their own journey. Some prefer to do CTFs,
+      some like to do a lot of labs, some like to read some books like "The Web Application
+      Hacker's Handbook" and just then jump into a program, and that's totally fine.</p>
+      <p>Personally I don't like CTFs. I didn't do any labs apart from 2 or 3 from PortSwigger on
+      HTTP smuggling. I did read a hacking-related book and understood nothing about it. What I
+      did was jump directly to old bug bounty programs and start searching for the vulnerabilities
+      I learned about, and that's it. Pretty simple, right?</p>
+      <p>Being a bug bounty hunter or security analyst means you will always be learning new
+      things — new vulnerabilities, new techniques, etc. There isn't any hacker that can say "I
+      know it all" and just stop learning. So start looking for vulnerabilities whenever you feel
+      like doing it. There isn't a "right" moment. I would recommend that you learn a few web
+      vulnerabilities before trying to hunt for bugs, but you are always free to do whatever you
+      want — remember, every journey is different.</p>
+
+      <h2>Do I need to get a certification like CEH?</h2>
+      <p>Definitely not. You can get it if you want to work for a company but it won't give you
+      any special advantage in the bug bounty world when finding and reporting vulnerabilities. A
+      lot of hackers are self-taught like me. You can learn everything without spending a single
+      dollar on any cert or any website that claims you can become a hacker in 2 weeks by buying
+      their $500 course. Don't trust them.</p>
+
+      <h2>Automation</h2>
+      <p>Automation can be anything from automating simple tasks such as a big command you do
+      every day, to a large script to do multiple things. This isn't a "must", but it will
+      definitely save you time and maybe you get more bugs.</p>
+      <blockquote><p>General rule every hacker (or just Linux user) knows: if you write the same
+      command (that is relatively long) 2 or more times a day, then make a function in
+      <code>.bashrc</code> or make a script and move it to <code>/usr/local/bin</code> to call it
+      from everywhere. This will save you time.</p></blockquote>
+      <p>I recommend watching Nahamsec's YouTube videos where he does recon and shows some cool
+      techniques and how you can automate your workflow. What I recommend:</p>
+      <ul>
+        <li>Automate subdomain enumeration and discovery.</li>
+        <li>Automate brute-forcing directories.</li>
+        <li>Automate visualization of live subdomains.</li>
+        <li>Automate everything that takes a "long" time to do manually so you can focus on
+        something else while it is running.</li>
+      </ul>
+
+      <h2>Conclusion + Tips</h2>
+      <ul>
+        <li>The bug bounty field is competitive.</li>
+        <li>Everything is on the internet, just ask Mr. Google.</li>
+        <li>This is not for everyone.</li>
+        <li>Try to avoid being overwhelmed with information. Take breaks.</li>
+        <li>Send this to the people that ask you "Can you teach me how to hack?"</li>
+        <li>Work hard and you will eventually get it.</li>
+        <li>Some people on Twitter share useful resources, tips, etc. — follow them!</li>
+        <li>Good luck.</li>
+      </ul>
+      <p>Hope this is useful for some people,<br />zonduu.</p>
+
+      <div class="post-footer">
+        <a class="back-link" href="/posts/">&lt; all posts</a>
+        <span class="post-meta" style="margin:0"><span>— zonduu</span></span>
+      </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <span>© <span data-year>2020</span> zonduu</span>
+      <span><a href="/posts/">← posts</a></span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

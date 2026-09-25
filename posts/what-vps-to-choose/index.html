@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>What VPS to choose? — zonduu</title>
+  <meta name="description" content="A comparison of the cloud/VPS providers I tried for bug bounty: AWS EC2, Linode, DigitalOcean, Scaleway Dedibox, and Contabo." />
+  <meta name="theme-color" content="#0d0e10" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="What VPS to choose?" />
+  <meta property="og:description" content="A comparison of the cloud/VPS providers I tried for bug bounty: AWS EC2, Linode, DigitalOcean, Scaleway Dedibox, and Contabo." />
+
+  <link rel="icon" href="/assets/img/avatar.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="/">
+        <span class="logo__prompt">&gt;</span>
+        <span>root@zonduu:~#</span>
+        <span class="logo__cursor" aria-hidden="true"></span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="/">home</a>
+        <a href="/posts/">posts</a>
+        <span class="nav__icons">
+          <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener" title="Twitter" aria-label="Twitter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+          </a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap wrap--reading page-title">
+      <a class="back-link" href="/posts/">&lt; ~/posts</a>
+      <h1>What VPS to choose?</h1>
+      <div class="post-meta">
+        <span>Apr 20, 2022</span>
+        <span class="dot">•</span>
+        <span>4 min read</span>
+        <span class="dot">•</span>
+        <span>#vps</span>
+        <span>#bug-bounty</span>
+      </div>
+    </div>
+
+    <article class="wrap wrap--reading prose">
+      <p>There are tons of cloud providers that offer different types of servers with a lot of
+      different options. I will talk about the ones I tried/tested and compare them here so
+      people can choose which one suits them better.</p>
+
+      <h2>AWS EC2 Instances</h2>
+      <p>AWS EC2 instances provide a lot of different options but I will recommend the free tier
+      options. If you create a new account, for 12 months you will have 750 free hours in the
+      following instance types: <code>t2.micro</code> and <code>t3.micro</code>.</p>
+      <figure><img src="/assets/img/posts/vps/aws.png" alt="AWS EC2 free tier instance types" loading="lazy" /></figure>
+      <p>The rest of the instance types offer much more CPU/RAM than 1 CPU and 1 GB RAM, but I do
+      not recommend them because nobody on earth understands how the billing system works for
+      EC2 — it is not an exact number and the bill may vary from month to month due to on-demand
+      usage. So I only recommend the free tier to have a "free" VPS to play with. →
+      <a href="https://aws.amazon.com/" target="_blank" rel="noopener">aws.amazon.com</a></p>
+      <p class="rating">7/10 recommended (only for free tier and basic VPS).</p>
+
+      <h2>Linode</h2>
+      <p>Linode has a special place in my heart because it was the first VPS I bought a few years
+      ago and I still have a few of them. Linode is a pentester/bug-bounty friendly cloud
+      provider. I got like 2 tickets in 3 years asking me about traffic going out from my VPS to
+      bug bounty sites, but after explaining what I was doing, they left a note and I didn't have
+      any more problems with them. Fair prices, really good performance, and it's really rare to
+      see their services going "down" or a "force shutdown" for maintenance.</p>
+      <figure><img src="/assets/img/posts/vps/linode.png" alt="Linode pricing" loading="lazy" /></figure>
+      <p>Fast to set up, and fast to delete the VPS if you don't need it anymore.</p>
+      <p class="rating">9/10 recommended →
+      <a href="https://www.linode.com/?r=7c10c4c6d335e0d25cd4fb7a46b62b9c66dee7aa" target="_blank" rel="noopener">linode.com</a></p>
+      <p>Referral for $100 discount in the first 60 days after you create your account.</p>
+
+      <h2>DigitalOcean</h2>
+      <p>DigitalOcean offers the same VPSs as Linode at the same price. I used it a lot when
+      testing <a href="https://github.com/pry0cc/axiom" target="_blank" rel="noopener">axiom</a>.
+      The problem I faced here is that when support made me a ticket to ask me what the account
+      was for, and why I needed so many VPSs, they <em>blocked my access and shut down the
+      "Droplets"</em> (or VPSs, whatever you want to name it) for the duration the ticket was
+      open.</p>
+      <p>Although that isn't a really big problem, it was not a very good experience for me, so
+      that's why I prefer Linode. Both offer the same VPSs at the same prices, so good customer
+      service made me stay with Linode.</p>
+      <figure><img src="/assets/img/posts/vps/digitalocean.png" alt="DigitalOcean pricing" loading="lazy" /></figure>
+      <p class="rating">8.5/10 recommended. →
+      <a href="https://www.digitalocean.com" target="_blank" rel="noopener">digitalocean.com</a></p>
+
+      <h2>Scaleway Dedibox</h2>
+      <p>OK, here is when things start to get interesting. Scaleway Dedibox offers great VPSs at a
+      really good price:
+      <a href="https://www.scaleway.com/en/dedibox/pricing/" target="_blank" rel="noopener">scaleway.com/en/dedibox/pricing</a></p>
+      <figure><img src="/assets/img/posts/vps/scaleway.png" alt="Scaleway Dedibox pricing" loading="lazy" /></figure>
+      <p>Although the prices are in euros and not in dollars, the prices are less than
+      Linode/DigitalOcean. The VPSs have good performance with good specs.</p>
+      <p>The downside is you can't select a lot of locations and it is pretty restricted (there
+      isn't an option for US). I have an 8 GB RAM &amp; 8 CPU core box for 21 euros a month there;
+      if you are looking for performance (more CPUs/RAM), this might be a really good option.</p>
+      <blockquote><p><strong>Note:</strong> 8 GB in DigitalOcean/Linode would be $40 a month.</p></blockquote>
+      <p class="rating">8.5/10 recommended. →
+      <a href="https://www.scaleway.com/" target="_blank" rel="noopener">scaleway.com</a></p>
+
+      <h2>Contabo</h2>
+      <p>Contabo is by far the cheapest one of all the ones I've seen. The difference here is:</p>
+      <ol>
+        <li>You pay a set-up fee when you create/buy the VPS — it's "one-time".</li>
+        <li>You pay for the full month; you can't buy it and delete it in the middle of the month
+        (well, you can, but you will still pay the full month).</li>
+      </ol>
+      <p>If you are looking for a long-term VPS that you know you will use for a long time, and
+      you are looking for a good CPU/RAM ratio, then Contabo might be for you. There were a lot
+      of different options for configurations and good regions to select.</p>
+      <figure><img src="/assets/img/posts/vps/contabo.png" alt="Contabo pricing" loading="lazy" /></figure>
+      <p>Downsides I had: tickets would take 2–3 days to respond, trouble paying for the VPS,
+      etc… it gave me a few problems.</p>
+      <p class="rating">5/10 recommended if you are not sure about it.</p>
+      <p class="rating">9/10 recommended if you are going to use it for 6+ months or a long period
+      of time and are looking for a "cheap" VPS. →
+      <a href="https://contabo.com/" target="_blank" rel="noopener">contabo.com</a></p>
+
+      <div class="post-footer">
+        <a class="back-link" href="/posts/">&lt; all posts</a>
+        <span class="post-meta" style="margin:0"><span>— zonduu</span></span>
+      </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <span>© <span data-year>2020</span> zonduu</span>
+      <span><a href="/posts/">← posts</a></span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

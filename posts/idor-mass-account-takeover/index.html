@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IDOR in session cookie leading to Mass Account Takeover — zonduu</title>
+  <meta name="description" content="A predictable numeric ID inside a session cookie let me brute-force complete access to any account — a $2,000 critical." />
+  <meta name="theme-color" content="#0d0e10" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="IDOR in session cookie leading to Mass Account Takeover" />
+  <meta property="og:description" content="A predictable numeric ID inside a session cookie let me brute-force complete access to any account." />
+  <link rel="icon" href="/assets/img/avatar.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <a class="logo" href="/">
+        <span class="logo__prompt">&gt;</span>
+        <span>root@zonduu:~#</span>
+        <span class="logo__cursor" aria-hidden="true"></span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="/">home</a>
+        <a href="/posts/">posts</a>
+        <span class="nav__icons">
+          <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener" title="Twitter" aria-label="Twitter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+          </a>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap wrap--reading page-title">
+      <a class="back-link" href="/posts/">&lt; ~/posts</a>
+      <h1>IDOR in session cookie leading to Mass Account Takeover</h1>
+      <div class="post-meta">
+        <span>May 29, 2020</span>
+        <span class="dot">•</span>
+        <span>3 min read</span>
+        <span class="dot">•</span>
+        <span>#idor</span>
+        <span>#account-takeover</span>
+      </div>
+    </div>
+
+    <article class="wrap wrap--reading prose">
+      <p>If you are familiar with what IDOR is, you will know that it can be anywhere — from URL,
+      request body, GET or POST requests, and yes, in cookies too.</p>
+      <p>After spending quite a lot of time in a private program I was invited to, I started to
+      learn how everything works, and that usually means (not every time) that you are more
+      likely to find more bugs, and that's what happened to me… I ended up in top 1 in the
+      leaderboard next to a few well-known hackers :)</p>
+
+      <figure><img src="/assets/img/posts/idor/leaderboard.png" alt="Program leaderboard" loading="lazy" /></figure>
+
+      <p>OK, back to the write-up.</p>
+      <p>When testing/analyzing the workflow of a web application I am usually looking for any
+      type of token/ID that can be used to gain information or perform sensitive actions that can
+      lead to IDOR.</p>
+      <p>I was trying to reproduce a CSRF issue when I noticed that in the cookies there was one
+      called <code>shoppingID</code> that turned out to be the session cookie.</p>
+      <p>After taking a closer look at the cookie's value I realized something that quickly got my
+      attention:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>cookie</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>shoppingID=88ea39539e74fa67c09a4fc0bc8ebe6d00978392PEr9ySESSIONID3552522PXGLkC;</code></pre>
+      </div>
+
+      <p>Have you noticed? If not, please don't continue and look at it again.</p>
+      <p>If you noticed it then congratulations, you might have a quick eye for possible IDORs.</p>
+      <p>At the end of the cookie there is <code>SESSIONID</code> and 7 numbers:
+      <code>SESSIONID3552522</code>. I quickly created a new account and looked at the session
+      cookie and it was really similar but with some differences.</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>cookie</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>shoppingID=88ea39539e74fa67c09a4fc0bc8ebe6d00978392HAB6FSESSIONID3552538KMDALK;</code></pre>
+      </div>
+
+      <p>Most of the cookie's value was the same in both session cookies, and that usually means a
+      problem. The first part was completely the same; the only difference was in the 5 random
+      characters before and after <code>SESSIONID{numbers}</code>. It took me some time to
+      analyze the cookie's value but then I realized that those random characters
+      <em>weren't validated by the server</em>, so changing only the numeric ID (the 7 digits
+      after the <code>SESSIONID</code>) would give me complete access to any account.</p>
+      <p>This is how the cookie looked, separated into A, B and C.</p>
+
+      <figure><img src="/assets/img/posts/idor/cookie-parts.png" alt="Cookie value split into parts A, B and C" loading="lazy" /></figure>
+
+      <p>After the creation of a few accounts I found out the following:</p>
+      <ul>
+        <li><strong>[A]</strong> — This was repeated in my test accounts, a pattern validated on
+        the server (there are also other different patterns).</li>
+        <li><strong>[B]</strong> — This is the number assigned incrementally on account creation;
+        this is exploitable.</li>
+        <li><strong>[C]</strong> — This is a combination of random numbers and letters that isn't
+        validated on the server.</li>
+      </ul>
+      <p>So because [B] was numeric only, [C] wasn't validated, and [A] was a pattern repeated on
+      other accounts, it was possible to just brute-force the ID to gain complete access to other
+      accounts.</p>
+      <p>This access token was permanent and didn't change over time, so this would give me
+      complete access to other accounts, including credit cards if stored in their accounts.</p>
+      <p>It took some time for the H1 team to understand that a session cookie IDOR was actually
+      possible. At the end it was resolved and awarded <strong>$2,000</strong> as the max payout
+      for a critical vulnerability.</p>
+
+      <figure><img src="/assets/img/posts/idor/bounty.png" alt="$2,000 bounty awarded" loading="lazy" /></figure>
+
+      <p>That was all, I hope you liked it :D</p>
+
+      <div class="post-footer">
+        <a class="back-link" href="/posts/">&lt; all posts</a>
+        <span class="post-meta" style="margin:0"><span>— zonduu</span></span>
+      </div>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <span>© <span data-year>2020</span> zonduu</span>
+      <span><a href="/posts/">← posts</a></span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>
