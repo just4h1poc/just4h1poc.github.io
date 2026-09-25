@@ -413,11 +413,10 @@ host=ip-10-0-249-248.us-west-2.compute.internal</code></pre>
       ECS task role credentials straight out of the metadata service.</p>
 
       <h2>What the AWS credentials unlocked</h2>
-      <p>A blind RCE and a screenshot of a callback is easy for a program to wave away, so the
-      point now was to show exactly how far the access went. The exfiltrated credentials, exported
-      locally, were enough to start confirming real access, with a small harmless proof artifact
-      left at each step so none of it was just a claim. The identity checked out as a Meta AWS
-      account:</p>
+      <p>A callback proving code execution is one thing, but a program can still play down the real
+      impact until you actually exercise the access. So I exported the exfiltrated credentials
+      locally and confirmed exactly how far they reached, leaving a small harmless proof artifact at
+      each step so none of it was just a claim. The identity checked out as a Meta AWS account:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>bash</span><button class="code__copy" type="button">copy</button></div>
