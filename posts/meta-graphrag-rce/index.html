@@ -430,10 +430,9 @@ host=ip-10-0-249-248.us-west-2.compute.internal</code></pre>
 
       <p>From there the blast radius opened up fast:</p>
       <ul>
-        <li><strong>S3, read and write.</strong> The dataset bucket held 398 objects covering
-        3,287 AI calling sessions, which is the actual meeting transcripts and graph data for real
-        user sessions. Both readable, and write access confirmed by dropping a harmless proof
-        file.</li>
+        <li><strong>S3, read and write.</strong> The dataset bucket held the actual meeting
+        transcripts and graph data for all 3,287 sessions. Both readable, and write access confirmed
+        by dropping a harmless proof file.</li>
         <li><strong>DynamoDB, read and write.</strong> The <code>fastgraphragDatasets</code> table
         had 3,287 records and accepted a proof item written into it.</li>
         <li><strong>Secrets Manager, full read.</strong> All 17 secrets in the account came back.</li>
