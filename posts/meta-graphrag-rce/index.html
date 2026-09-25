@@ -73,7 +73,7 @@
       living at <code>REDACTED.aws.metafb.cloud</code>. It runs on AWS
       ECS Fargate. The wildcard it sat under was the event's special scope, the kind that carries a 20%
       bonus on top of the normal bounty. As the hostname hints, it was also a development
-      environment, and I will come back to that word later because it ended up mattering a lot.</p>
+      environment.</p>
 
       <h2>A lot of nothing, then a key in the JavaScript</h2>
       <p>We spent the first stretch of the event just crawling the target. Mapping subdomains,
@@ -525,16 +525,15 @@ gcloud auth print-access-token
       historically seen little exposure on AWS.</p>
 
       <p>The decision came back at a <strong>$500</strong> bounty, plus a <strong>$25</strong>
-      Hacker Plus bonus, for a total of <strong>$525</strong>. The reasoning was that this was a
-      development environment.</p>
+      Hacker Plus bonus, for a total of <strong>$525</strong>.</p>
 
       <p>I will be honest, this one left a bad taste. Root on the box, the container's AWS role,
       read and write over 3,287 real meeting transcripts, two GCP service accounts including one
       called sso-admin, and 17 secrets with live OAuth client secrets and a JWT signing key sitting
       in the same account. All of it proven, not theory. And the whole thing came down to $525.</p>
 
-      <p>Anyway. That is the write-up. The next one is on Twitter at
-      <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener">@zonduu1</a>.</p>
+      <p>Anyway. That is the write-up. Follow me on
+      <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener">Twitter</a> for the next one.</p>
 
       <div class="post-footer">
         <a class="back-link" href="/posts/">&lt; all posts</a>
