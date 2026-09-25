@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Root shell, full AWS and GCP, and 17 secrets on a Meta service · zonduu</title>
+  <title>Root RCE and full cloud takeover on a Meta service · zonduu</title>
   <meta name="description" content="Chaining a hardcoded API key and two path traversals into pickle deserialization for remote code execution as root on a Meta service, then pulling AWS creds, GCP service accounts and 17 secrets." />
   <meta name="theme-color" content="#0d0e10" />
   <meta property="og:type" content="article" />
-  <meta property="og:title" content="Root shell, full AWS and GCP, and 17 secrets on a Meta service" />
+  <meta property="og:title" content="Root RCE and full cloud takeover on a Meta service" />
   <meta property="og:description" content="A hardcoded key plus two path traversals plus an unsafe pickle load, chained into root RCE and a full cloud compromise on a Meta service." />
   <link rel="icon" href="/assets/img/avatar.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,7 +38,7 @@
   <main>
     <div class="wrap wrap--reading page-title">
       <a class="back-link" href="/posts/">&lt; ~/posts</a>
-      <h1>Root shell, full AWS and GCP, and 17 secrets on a Meta service</h1>
+      <h1>Root RCE and full cloud takeover on a Meta service</h1>
       <div class="post-meta">
         <span>May 8, 2026</span>
         <span class="dot">•</span>
@@ -379,7 +379,7 @@ gcloud auth print-access-token
       interaction account takeover class bug can pay six figures. Their answer was fair and
       measured. They said they reward based on impact, that they run their own impact
       investigation beyond what a researcher can confirm from the outside, that they had
-      historically seen little exposure on AWS, and that it would take about a week to calculate.</p>
+      historically seen little exposure on AWS.</p>
 
       <p>The decision came back at a <strong>$500</strong> bounty, plus a <strong>$25</strong>
       Hacker Plus bonus, for a total of <strong>$525</strong>. The reasoning was that this was a
@@ -388,16 +388,7 @@ gcloud auth print-access-token
       <p>I will be honest, this one left a bad taste. Root on the box, the container's AWS role,
       read and write over 3,289 real meeting transcripts, two GCP service accounts including one
       called sso-admin, and 17 secrets with live OAuth client secrets and a JWT signing key sitting
-      in the same account. All of it proven, not theory. And the whole thing came down to $525
-      because someone had labeled the box "dev".</p>
-
-      <p>The part that actually got to me was that there was nothing I could do about it. You do
-      not get to negotiate impact. The program decides what your finding was worth, tells you the
-      number, and that is the end of it. I pushed back, I laid out exactly how far the access went,
-      and it did not move a cent. Full code execution and a complete cloud compromise on Meta
-      infrastructure, and I was left staring at a payout that would not cover a decent monitor,
-      with no way to argue it into anything else. That is the part of bug bounty nobody really
-      warns you about.</p>
+      in the same account. All of it proven, not theory. And the whole thing came down to $525.</p>
 
       <p>Anyway. That is the write-up. The next one is on Twitter at
       <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener">@zonduu1</a>.</p>
