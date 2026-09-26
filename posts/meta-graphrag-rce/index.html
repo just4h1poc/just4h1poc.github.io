@@ -413,10 +413,11 @@ host=ip-10-0-249-248.us-west-2.compute.internal</code></pre>
       ECS task role credentials straight out of the metadata service.</p>
 
       <h2>What the AWS credentials unlocked</h2>
-      <p>A callback proving code execution is one thing, but a program can still play down the real
-      impact until you actually exercise the access. So I exported the exfiltrated credentials
-      locally and confirmed exactly how far they reached, leaving a small harmless proof artifact at
-      each step so none of it was just a claim. The identity checked out as a Meta AWS account:</p>
+      <p>A blind RCE and a screenshot of a callback is easy for a program to wave away, so the
+      point now was to show exactly how far the access went. The exfiltrated credentials, exported
+      locally, were enough to start confirming real access, with a small harmless proof artifact
+      left at each step so none of it was just a claim. The identity checked out as a Meta AWS
+      account:</p>
 
       <div class="code">
         <div class="code__bar"><span class="code__dots"><i></i><i></i><i></i></span><span>bash</span><button class="code__copy" type="button">copy</button></div>
@@ -531,8 +532,8 @@ gcloud auth print-access-token
       called sso-admin, and 17 secrets with live OAuth client secrets and a JWT signing key sitting
       in the same account. All of it proven, not theory. And the whole thing came down to $525.</p>
 
-      <p>I tried to argue the severity and the payout, but I was ignored. I followed up more than
-      once and never got a response.</p>
+      <p>Payout aside, the Meta event itself was a great experience. I got to know Japan and
+      Taiwan, and met a lot of people along the way, and that part I would not trade for anything.</p>
 
       <p>Anyway. That is the write-up. Follow me on
       <a href="https://twitter.com/zonduu1" target="_blank" rel="noopener">Twitter</a> for the next one.</p>
